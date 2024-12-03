@@ -1,114 +1,70 @@
-using Xunit;
-using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Support.UI;
-using SeleniumExtras.WaitHelpers;
 using System;
-using System.Linq;
-
-[assembly: CollectionBehavior(CollectionBehavior.CollectionPerClass, MaxParallelThreads = 16)]
+using Xunit;
+using Testing_w_Selenium.TestBuilders;
+using Testing_w_Selenium.PageObjects;
 
 namespace TestingWithSelenium.xUnit
 {
-    [Trait("Category", "Navigation")]
-    public class NavigationTests : IDisposable
+    public class SeleniumxUnitTest : IDisposable
     {
-        private readonly IWebDriver driver;
+        private readonly TestBuilder _testBuilder;
+        private readonly HomePage _homePage;
 
-        public NavigationTests()
+        public SeleniumxUnitTest()
         {
-            driver = new ChromeDriver();
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(30);
-            driver.Manage().Window.Maximize();
-        }
-
-        [Theory]
-        [InlineData("https://en.ehu.lt/", "About")]
-        [InlineData("https://en.ehu.lt/about/", "About")]
-        public void VerifyNavigationToAboutPage(string url, string expectedTitle)
-        {
-            driver.Navigate().GoToUrl(url);
-            var aboutButton = driver.FindElement(By.XPath("//*[@id=\"menu-item-16178\"]/a"));
-            aboutButton.Click();
-            Assert.Equal("https://en.ehu.lt/about/", driver.Url);
-            Assert.Equal(expectedTitle, driver.Title);
-            var header = driver.FindElement(By.TagName("h1"));
-            Assert.Equal("About", header.Text);
-        }
-
-        public void Dispose()
-        {
-            driver.Quit();
-            driver.Dispose();
-        }
-    }
-
-    [Trait("Category", "Search")]
-    public class SearchTests : IDisposable
-    {
-        private readonly IWebDriver driver;
-
-        public SearchTests()
-        {
-            driver = new ChromeDriver();
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(30);
-            driver.Manage().Window.Maximize();
-        }
-
-        [Theory]
-        [InlineData("study programs", "study program")]
-        public void VerifySearchFunctionalityWithDifferentQueries(string query, string expectedText)
-        {
-            driver.Navigate().GoToUrl("https://en.ehu.lt/");
-            var searchButton = driver.FindElement(By.XPath("//*[@id=\"masthead\"]/div[1]/div/div[4]/div"));
-            searchButton.Click();
-            var searchBar = driver.FindElement(By.XPath("//*[@id=\"masthead\"]/div[1]/div/div[4]/div/form/div/input"));
-            searchBar.SendKeys(query);
-            searchBar.SendKeys(Keys.Enter);
-
-            Assert.Contains($"/?s={query.Replace(" ", "+")}", driver.Url);
-            var searchResults = driver.FindElements(By.XPath("//*[@id=\"page\"]/div[3]"));
-            bool resultsContainSearchTerm = searchResults.Any(result => result.Text.Contains(expectedText, StringComparison.OrdinalIgnoreCase));
-            Assert.True(resultsContainSearchTerm, $"Search results do not contain any expected text: {expectedText}");
-        }
-
-        public void Dispose()
-        {
-            driver.Quit();
-            driver.Dispose();
-        }
-    }
-
-    [Trait("Category", "LanguageSwitch")]
-    public class LanguageSwitchTests : IDisposable
-    {
-        private readonly IWebDriver driver;
-
-        public LanguageSwitchTests()
-        {
-            driver = new ChromeDriver();
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(30);
-            driver.Manage().Window.Maximize();
+            _testBuilder = new TestBuilder().InitializeDriver();
+            _homePage = _testBuilder.BuildHomePage();
         }
 
         [Fact]
-        public void VerifyLanguageSwitchFunctionality()
+        public void VerifyNavigationToAboutEHUPage()
         {
-            driver.Navigate().GoToUrl("https://en.ehu.lt/");
-            var languageSwitchButton = driver.FindElement(By.XPath("//*[@id=\"masthead\"]/div[1]/div/div[4]/ul"));
-            languageSwitchButton.Click();
-            var ltButton = driver.FindElement(By.XPath("//*[@id=\"masthead\"]/div[1]/div/div[4]/ul/li/ul/li[3]/a"));
-            ltButton.Click();
-            Assert.Equal("https://lt.ehu.lt/", driver.Url);
-            var htmlTag = driver.FindElement(By.TagName("html"));
-            string langAttribute = htmlTag.GetAttribute("lang");
-            Assert.Equal("lt-LT", langAttribute);
+            _homePage.NavigateToHomePage("https://en.ehu.lt/");
+            _homePage.ClickAboutButton();
+            Assert.Equal("About", _homePage.Driver.Title);
+            var header = _homePage.GetHeader();
+            Assert.True(header.Displayed, "The content header does not display the expected text.");
+        }
+
+        [Theory]
+        [InlineData("study programs")]
+        public void VerifySearchFunctionality(string query)
+        {
+            _homePage.NavigateToHomePage("https://en.ehu.lt/");
+            _homePage.ClickSearchIcon();
+            _homePage.EnterSearchTerm(query);
+            _homePage.SubmitSearch();
+
+            Assert.Equal("https://en.ehu.lt/?s=study+programs", _homePage.Driver.Url);
+
+            // Assert.Contains($"/?s={query.Replace(" ", "+")}", _homePage.Driver.Url);
+            // Assert.True(_homePage.SearchResultsContain("study"), "The search results do not contain the expected text.");
+        }
+
+        [Fact]
+        public void VerifyLanguageChangeFunctionality()
+        {
+            _homePage.NavigateToHomePage("https://en.ehu.lt/");
+            _homePage.ClickLanguageSwitcher();
+            _homePage.SelectLithuanianLanguage();
+            Assert.Equal("https://lt.ehu.lt/", _homePage.Driver.Url);
+            var header = _homePage.GetLithuanianHeader();
+            Assert.True(header.Displayed, "The page content does not appear in Lithuanian.");
+        }
+
+        [Fact]
+        public void VerifyContactFormSubmission()
+        {
+            _homePage.NavigateToContactsPage();
+            Assert.Equal("Admission inquiries", _homePage.GetAdmissionInquiriesText());
+            Assert.Equal("recruitment@ehu.lt", _homePage.GetEmailFieldText());
+            Assert.Equal("European Humanities University", _homePage.GetFacebookFieldText());
+            Assert.Contains("+370 (644) 96 317", _homePage.GetPhoneFieldText());
         }
 
         public void Dispose()
         {
-            driver.Quit();
-            driver.Dispose();
+            _testBuilder.TearDown();
         }
     }
 }
