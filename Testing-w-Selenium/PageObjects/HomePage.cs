@@ -1,6 +1,8 @@
 using OpenQA.Selenium;
+using Serilog;
 using System;
 using System.Linq;
+using OpenQA.Selenium.Support.UI;
 
 namespace Testing_w_Selenium.PageObjects
 {
@@ -102,6 +104,27 @@ namespace Testing_w_Selenium.PageObjects
         public IWebElement GetLithuanianHeader()
         {
             return Driver.FindElement(By.XPath("//*[@id='page']/footer/div/div/div[4]/div/div[3]/span[2]"));
+        }
+
+        public void CaptureScreenshot(string testName)
+        {
+            try
+            {
+                var screenshotDir = Path.Combine(
+                    Directory.GetParent(Directory.GetCurrentDirectory())?.Parent?.Parent?.Parent?.FullName ?? 
+                    Directory.GetCurrentDirectory(), 
+                    "Screenshots");
+                Directory.CreateDirectory(screenshotDir);
+
+                var screenshot = ((ITakesScreenshot)Driver).GetScreenshot();
+                var fileName = Path.Combine(screenshotDir, $"{testName}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+                screenshot.SaveAsFile(fileName);
+                Log.Information("Screenshot saved: {FileName}", fileName);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to capture screenshot.");
+            }
         }
 
         public IWebDriver Driver => base.Driver;

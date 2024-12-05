@@ -1,4 +1,5 @@
 using Testing_w_Selenium.PageObjects;
+using Serilog;
 
 namespace Testing_w_Selenium.TestBuilders
 {
@@ -11,6 +12,7 @@ namespace Testing_w_Selenium.TestBuilders
         public TestBuilder InitializeDriver()
         {
             _homePage = new HomePage(DriverSingleton.GetDriver());
+            Log.Debug("Driver initialized in TestBuilder.");
             return this;
         }
 
@@ -21,7 +23,9 @@ namespace Testing_w_Selenium.TestBuilders
 
         public void TearDown()
         {
+            Log.Debug("TearDown started in TestBuilder.");
             DriverSingleton.QuitDriver();
+            Log.Debug("TearDown completed in TestBuilder.");
         }
     }
 }

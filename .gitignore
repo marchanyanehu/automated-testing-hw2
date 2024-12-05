@@ -41,3 +41,6 @@ TestResults/
 *.cache
 *.pdb
 *.mdb
+
+logs/
+Screenshots/
