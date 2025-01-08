@@ -15,3 +15,10 @@ Passed!  - Failed:     0, Passed:     4, Skipped:     0, Total:     4, Duration:
 ### Conclusion
 
 xUnit runner performed much better, as expected tho, because it was built with the idea to be ran in parallel. (Better utilization of multithreading) Also xUnits uses constructors for setting up and tearing down while the NUnit relies on seperate methods.
+
+
+### Task REPORTING
+![alt text](image.png)
+see the attached html file
+
+[text](index.html)

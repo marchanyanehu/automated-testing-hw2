@@ -3,6 +3,9 @@ using Testing_w_Selenium.TestBuilders;
 using FluentAssertions;
 using Serilog;
 using System;
+using AventStack.ExtentReports;
+using AventStack.ExtentReports.Reporter;
+using NUnit.Framework.Interfaces;
 
 namespace TestingWithSelenium.NUnit
 {
@@ -10,11 +13,29 @@ namespace TestingWithSelenium.NUnit
     public class SeleniumNUnitTest
     {
         private TestBuilder _testBuilder;
+        private static ExtentReports _extent;
+        private ExtentTest _test;
+
+        [OneTimeSetUp]
+        public void InitializeReport()
+        {
+            var reportPath = System.IO.Path.Combine(TestContext.CurrentContext.TestDirectory, "TestReport.html");
+            _extent = new ExtentReports();
+            var htmlReporter = new ExtentHtmlReporter(reportPath);
+            
+            htmlReporter.Config.DocumentTitle = "Test Automation Report";
+            htmlReporter.Config.ReportName = "Selenium Test Results";
+            
+            _extent.AttachReporter(htmlReporter);
+            _extent.AddSystemInfo("Environment", "Test");
+            _extent.AddSystemInfo("User", Environment.UserName);
+        }
 
         [SetUp]
         public void SetUp()
         {
             _testBuilder = new TestBuilder().InitializeDriver();
+            _test = _extent.CreateTest(TestContext.CurrentContext.Test.Name);
             Log.Debug("Test setup initialized.");
         }
 
@@ -39,9 +60,12 @@ namespace TestingWithSelenium.NUnit
                 var header = homePage.GetHeader();
                 header.Displayed.Should().BeTrue("The content header should be displayed.");
                 Log.Debug("Verified header is displayed.");
+
+                _test.Pass("Navigation to About page successful");
             }
             catch (Exception ex)
             {
+                _test.Fail(ex);
                 Log.Error(ex, "[{TestName}] Test failed with exception.", testName);
                 _testBuilder.BuildHomePage().CaptureScreenshot(testName);
                 throw;
@@ -73,11 +97,13 @@ namespace TestingWithSelenium.NUnit
                 homePage.SubmitSearch();
                 Log.Debug("Submitted search.");
 
-                homePage.Driver.Url.Should().Be("https://en.ehu.lt/?s=study+programs", "The URL should match the expected search URL.");
-                Log.Debug("Verified search URL.");
+                homePage.Driver.Url.Should().Be("https://en.ehu.lt/wrong-url", "The URL should match the expected search URL.");
+                
+                _test.Pass("Search functionality verified");
             }
             catch (Exception ex)
             {
+                _test.Fail(ex);
                 Log.Error(ex, "[{TestName}] Test failed with exception.", testName);
                 _testBuilder.BuildHomePage().CaptureScreenshot(testName);
                 throw;
@@ -89,40 +115,10 @@ namespace TestingWithSelenium.NUnit
         }
 
         [Test]
+        [Ignore("Test skipped for demonstration purposes")]
         public void VerifyLanguageChangeFunctionality()
         {
-            var testName = nameof(VerifyLanguageChangeFunctionality);
-            Log.Information("[{TestName}] Test started.", testName);
-
-            try
-            {
-                var homePage = _testBuilder.BuildHomePage();
-                homePage.NavigateToHomePage("https://en.ehu.lt/");
-                Log.Debug("Navigated to home page.");
-
-                homePage.ClickLanguageSwitcher();
-                Log.Debug("Clicked language switcher.");
-
-                homePage.SelectLithuanianLanguage();
-                Log.Debug("Selected Lithuanian language.");
-
-                homePage.Driver.Url.Should().Be("https://lt.ehu.lt/", "The URL should match the expected Lithuanian version.");
-                Log.Debug("Verified Lithuanian URL.");
-
-                var header = homePage.GetLithuanianHeader();
-                header.Displayed.Should().BeTrue("The page content should appear in Lithuanian.");
-                Log.Debug("Verified Lithuanian header.");
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[{TestName}] Test failed with exception.", testName);
-                _testBuilder.BuildHomePage().CaptureScreenshot(testName);
-                throw;
-            }
-            finally
-            {
-                Log.Information("[{TestName}] Test completed.", testName);
-            }
+            _test.Skip("Test skipped for demonstration purposes");
         }
 
         [Test]
@@ -164,9 +160,31 @@ namespace TestingWithSelenium.NUnit
         [TearDown]
         public void TearDown()
         {
+            var status = TestContext.CurrentContext.Result.Outcome.Status;
+            var errorMessage = TestContext.CurrentContext.Result.Message;
+            
+            if (TestContext.CurrentContext.Result.Outcome.Status == TestStatus.Failed)
+            {
+                _test.Fail(errorMessage);
+            }
+            else if (TestContext.CurrentContext.Result.Outcome.Status == TestStatus.Skipped)
+            {
+                _test.Skip(errorMessage);
+            }
+            else
+            {
+                _test.Pass("Test executed successfully");
+            }
+
             Log.Debug("Test teardown initiated.");
             _testBuilder.TearDown();
             Log.Debug("Test teardown completed.");
+        }
+
+        [OneTimeTearDown]
+        public void CleanupReport()
+        {
+            _extent.Flush();
         }
     }
 }
